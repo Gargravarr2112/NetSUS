@@ -148,43 +148,89 @@ function setWebAdminUser($username, $password)
 // 	// TODO
 // }
 
-function getDN($ldapconn, $samaccountname, $basedn)
+/**
+ * Returns the LDAP Distinguished Name for a Common Name within the given Base DN
+ */
+function getDN($ldapconn, $commonName, $basedn, $debug)
 {
-    $attributes = array("dn");
-    $result = ldap_search($ldapconn, $basedn, "(|(samaccountname=".$samaccountname.")(userprincipalname=".$samaccountname."))", $attributes);
-    if ($result === FALSE)
-        return '';
-    $entries = ldap_get_entries($ldapconn, $result);
-    if ($entries['count'] > 0)
-        return $entries[0]['dn'];
-    else
-        return '';
+	$attributes = array("dn");
+	if ($debug) print("\nSearching for $commonName in $basedn");
+	$result = ldap_search($ldapconn, $basedn, $commonName, $attributes);
+	if ($result === FALSE)
+	{
+		if ($debug) print("\nNo results found");
+		return '';
+	}
+	$entries = ldap_get_entries($ldapconn, $result);
+	if ($entries['count'] > 0)
+		return $entries[0]['dn'];
+	else
+		return '';
 };
 
-function checkLDAPGroupEx($ldapconn, $userdn, $groupdn)
+function checkLDAPGroupEx($ldapconn, $userdn, $groupdn, $isAD, $debug)
 {
-    $attributes = array("memberOf");
-    $result = ldap_read($ldapconn, $userdn, "(objectclass=*)", $attributes);
-    if ($result === FALSE)
-        return FALSE;
-    $entries = ldap_get_entries($ldapconn, $result);
-    if ($entries['count'] <= 0)
-        return FALSE;
-    if (empty($entries[0]['memberof']))
-    {
-        return FALSE;
-    }
-    else
-    {
-        for ($i = 0; $i < $entries[0]['memberof']['count']; $i++)
-        {
-            if ($entries[0]['memberof'][$i] == $groupdn)
-                return TRUE;
-            elseif (checkLDAPGroupEx($ldapconn, $entries[0]['memberof'][$i], $groupdn))
-                return TRUE;
-        }
-    }
-    return FALSE;
+	if ($debug) print("\nChecking group membership for $userdn in $groupdn");
+	if ($isAD)
+	{
+		$attributes = array("memberOf");
+		$result = ldap_read($ldapconn, $userdn, "(objectclass=*)", $attributes);
+		if ($result === FALSE)
+			return FALSE;
+		$entries = ldap_get_entries($ldapconn, $result);
+		if ($entries['count'] <= 0)
+			return FALSE;
+		if (empty($entries[0]['memberof']))
+		{
+			return FALSE;
+		}
+		else
+		{
+			for ($i = 0; $i < $entries[0]['memberof']['count']; $i++)
+			{
+				if ($entries[0]['memberof'][$i] == $groupdn)
+					return TRUE;
+				elseif (checkLDAPGroupEx($ldapconn, $entries[0]['memberof'][$i], $groupdn, $isAD, $debug))
+					return TRUE;
+			}
+		}
+		return FALSE;
+	}
+	else //OpenLDAP works basically backwards to AD, get the Group object and check the usernames assigned to it
+	{
+		$attributes = array("memberUid");
+		if ($debug) print("\nSearching group DN to retrieve users: " . $groupdn);
+		$result = ldap_read($ldapconn, $groupdn, "(objectclass=posixGroup)", $attributes);
+		if ($result === FALSE)
+		{
+			if ($debug) print("\nNo results found");
+			return FALSE;
+		}
+		if ($debug) print("\nRetrieving entries from result");
+		$entries = ldap_get_entries($ldapconn, $result);
+		if ($entries['count'] <= 0)
+		{
+			if ($debug) print("\nZero entries returned");
+			return FALSE;
+		}
+		if ($debug) print_r($entries);
+		if (empty($entries[0]['memberuid']))
+		{
+			if ($debug) print("\nFirst memberUid is blank!");
+			return FALSE;
+		}
+		else
+		{
+			if ($debug) print("Got " . $entries['count'] . " results containing " . $entries[0]['memberuid']['count'] . " rows");
+			for ($i = 0; $i < $entries[0]['memberuid']['count']; $i++)
+			{
+				if ($debug) print("\nChecking memberUid: " . $entries[0]['memberuid'][$i]);
+				if ($entries[0]['memberuid'][$i] == $userdn)
+					return TRUE;
+			}
+		}
+		return FALSE;
+	}
 };
 
 
