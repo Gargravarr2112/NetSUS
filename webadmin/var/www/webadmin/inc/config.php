@@ -128,9 +128,10 @@ class WebadminConfig
 	{
 		// Create a fresh XML document
 		$this->xmlDoc = new DOMDocument("1.0", "utf-8");
+		$this->xmlDoc->formatOutput = true;
 		$this->topElement = $this->xmlDoc->createElement(TOP_ELEMENT_NAME);
 		$this->xmlDoc->appendChild($this->topElement);
-		$this->topElement->appendChild(new DOMComment("Last updated: " . time()));
+		$this->topElement->appendChild(new DOMComment("Last updated: " . date('Y-m-d')));
 
 		// Loop through the settings
 		foreach ($this->settings as $key => $value)
@@ -519,6 +520,8 @@ class WebadminConfig
 	{
 		echo "Settings: ";
 		print_r($this->settings);
+		echo "Admins: ";
+		$this->printAdmins();
 		echo "Subnets: ";
 		print_r($this->subnets);
 		echo "Proxies: ";
