@@ -95,15 +95,35 @@ if (isset($_POST['saveLDAPConfiguration']) && isset($_POST['server']) && isset($
 	{
 		$ldaperror = "Specify a domain.";
 	}
-	else {
+	else if (($_POST['binddn'] != "") && ($_POST['bindpw'] == ""))
+	{
+		$ldaperror = "If using a bind user, password must be supplied.";
+	}
+	else
+	{
 		$conf->setSetting("ldapserver", $_POST['server']);
 		$conf->setSetting("ldapdomain", $_POST['domain']);
+		if (isset($_POST['ldapbinddn']))
+		{
+			$conf->setSetting("ldapbinddn", $_POST['ldapbinddn']);
+			$conf->setSetting("ldapbindpw", $_POST['ldapbindpw']);
+		}
+		if (isset($_POST['ldapbindou']))
+		{
+			$conf->setSetting("ldapbindou", $_POST['ldapbindou']);
+		}
+		if (isset($_POST['ldapgroupou']))
+		{
+			$conf->setSetting("ldapgroupou", $_POST['ldapgroupou']);
+		}
+		$conf->saveSettings();
 		$ldapsuccess = "Saved LDAP configuration.";
 	}
 }
 if (isset($_POST['addadmin']) && isset($_POST['cn']) && $_POST['cn'] != "")
 {
-	$conf->addAdmin($_POST['cn']);
+	if (!$conf->addAdmin($_POST['cn']))
+		$ldaperror .= "Failed to add admin group";
 }
 if (isset($_GET['deleteAdmin']) && $_GET['deleteAdmin'] != "")
 {
@@ -221,6 +241,22 @@ include "inc/header.php";
 					<label class="control-label">LDAP Domain</label>
 					<span class="description">Example: ad.myorg.corp</span>
 					<input type="text" name="domain" id="domain" class="form-control input-sm" value="<?php echo $conf->getSetting('ldapdomain'); ?>" />
+
+					<label class="control-label">LDAP Bind Username (optional)</label>
+					<span class="description">Example: cn=binduser,ou=users,dc=company,dc=com</span>
+					<input type="text" name="binddn" id="binddn" class="form-control input-sm" value="<?php echo $conf->getSetting('ldapbinddn'); ?>" />
+
+					<label class="control-label">LDAP Bind Password (optional)</label>
+					<span class="description"></span>
+					<input type="text" name="bindpw" id="bindpw" class="form-control input-sm" value="<?php echo $conf->getSetting('ldapbindpw'); ?>" />
+
+					<label class="control-label">LDAP Base OU (optional)</label>
+					<span class="description">Example: users</span>
+					<input type="text" name="bindou" id="bindou" class="form-control input-sm" value="<?php echo $conf->getSetting('ldapbindou'); ?>" />
+
+					<label class="control-label">LDAP Group OU (optional)</label>
+					<span class="description">Example: groups</span>
+					<input type="text" name="groupou" id="groupou" class="form-control input-sm" value="<?php echo $conf->getSetting('ldapgroupou'); ?>" />
 
 					<label class="control-label">Administration Groups</label>
 					<span class="description">Example: Domain Admins</span>
